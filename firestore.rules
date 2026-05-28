@@ -1,0 +1,207 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ═══════════════════════════════════════════════
+    // HELPER FUNCTIONS
+    // ═══════════════════════════════════════════════
+
+    // Verifica se o usuário é Funcionário ou ADM baseado nas Claims do Token
+    function isStaff() {
+      return request.auth != null && (request.auth.token.role == 'Funcionario' || request.auth.token.role == 'ADM');
+    }
+
+    // Verifica se o usuário é ADM baseado na Claim do Token
+    function isAdmin() {
+      return request.auth != null && request.auth.token.role == 'ADM';
+    }
+
+    // Verifica se o usuário está autenticado
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // ═══════════════════════════════════════════════
+    // COLEÇÃO: usuarios
+    // ═══════════════════════════════════════════════
+    match /usuarios/{userId} {
+
+      // LEITURA:
+      // - Qualquer autenticado pode ler o PRÓPRIO perfil
+      // - ADM pode ler QUALQUER perfil (para o painel de gerenciamento)
+      allow get: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+      allow list: if isAuthenticated() && isAdmin();
+
+      // CRIAÇÃO (signup):
+      // - Apenas o próprio usuário pode criar seu documento
+      // - O campo 'role' DEVE ser 'Comum', exceto se o setup da aplicação ainda não foi criado (primeiro usuário = ADM)
+      allow create: if isAuthenticated()
+                    && request.auth.uid == userId
+                    && (
+                      request.resource.data.role == 'Comum'
+                      ||
+                      (request.resource.data.role == 'ADM' && !exists(/databases/$(database)/documents/config/setup))
+                    );
+
+      // ATUALIZAÇÃO:
+      // - O próprio usuário pode atualizar seus dados, MAS NÃO PODE alterar o campo 'role' (exceto se estiver se excluindo/anonimizando para 'Excluido')
+      // - Ao se excluir, o próprio usuário pode APENAS alterar o campo 'role' para 'Excluido', sem injetar outras alterações
+      allow update: if isAuthenticated() 
+                    && request.auth.uid == userId
+                    && (
+                      !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role'])
+                      ||
+                      (
+                        request.resource.data.role == 'Excluido'
+                        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['role'])
+                      )
+                    );
+
+      // DELEÇÃO: Ninguém pode deletar perfis de usuários
+      allow delete: if false;
+    }
+
+    // ═══════════════════════════════════════════════
+    // COLEÇÃO: cpfs (Garante unicidade sem expor dados)
+    // ═══════════════════════════════════════════════
+    match /cpfs/{cpf} {
+      // Qualquer usuário autenticado pode verificar se um CPF específico existe (get)
+      allow get: if isAuthenticated();
+      
+      // Qualquer usuário pode criar seu registro de CPF desde que o vincule ao seu próprio UID
+      allow create: if isAuthenticated() && request.resource.data.uid == request.auth.uid;
+      
+      // Apenas o próprio dono do CPF ou um ADM pode alterar ou remover a associação (garantindo imutabilidade de UID no update)
+      allow update: if isAuthenticated() 
+                    && (resource.data.uid == request.auth.uid || isAdmin())
+                    && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['uid']);
+      allow delete: if isAuthenticated() && (resource.data.uid == request.auth.uid || isAdmin());
+    }
+
+    // ═══════════════════════════════════════════════
+    // COLEÇÃO: config
+    // ═══════════════════════════════════════════════
+    match /config/setup {
+      // Qualquer autenticado pode verificar se o setup foi feito
+      allow read: if isAuthenticated();
+      
+      // Apenas na criação inicial (se o documento não existe)
+      allow create: if isAuthenticated() && !exists(/databases/$(database)/documents/config/setup);
+      
+      // Apenas administradores podem atualizar ou deletar a configuração de setup
+      allow update, delete: if isAuthenticated() && isAdmin();
+    }
+
+    // ═══════════════════════════════════════════════
+    // COLEÇÃO: tickets (Chamados de Suporte)
+    // ═══════════════════════════════════════════════
+    match /tickets/{ticketId} {
+      // Qualquer pessoa pode abrir um ticket (mesmo não logada) na página inicial se os campos forem estruturalmente válidos
+      allow create: if request.resource.data.titulo is string
+                    && request.resource.data.titulo.size() <= 100
+                    && request.resource.data.descricao is string
+                    && request.resource.data.descricao.size() <= 1000;
+      
+      // Apenas Funcionários e ADMs podem listar, ler e atualizar chamados
+      allow read, update, delete: if isAuthenticated() && isStaff();
+    }
+
+    // ═══════════════════════════════════════════════
+    // COLEÇÃO: equipamentos_endocompany
+    // ═══════════════════════════════════════════════
+    match /equipamentos_endocompany/{equipId} {
+      // Qualquer autenticado pode ler os equipamentos (necessário para abrir chamados e estoque)
+      allow read: if isAuthenticated();
+      
+      // Validações estritas de tipo, tamanho e esquema contra injeções maliciosas
+      allow create, update: if isStaff()
+                            && request.resource.data.keys().hasOnly(['serial', 'local', 'status_equipamento'])
+                            && request.resource.data.serial is string
+                            && request.resource.data.serial.size() <= 20
+                            && request.resource.data.local is string
+                            && request.resource.data.local.size() < 200
+                            && (
+                              !request.resource.data.keys().hasAny(['status_equipamento'])
+                              ||
+                              request.resource.data.status_equipamento in [
+                                'Equipamento Funcionando', 
+                                'Em Manutenção', 
+                                'Equipamento de Demonstração', 
+                                'Backup'
+                              ]
+                            );
+
+      // Ninguém pode deletar equipamentos (não existe essa funcionalidade na app)
+      allow delete: if false;
+    }
+
+    // ═══════════════════════════════════════════════
+    // COLEÇÃO: preventivas_endocompany
+    // ═══════════════════════════════════════════════
+    match /preventivas_endocompany/{prevId} {
+      // Apenas Funcionários e ADMs podem ler, criar, editar e deletar preventivas
+      allow read: if isStaff();
+      allow create, update: if isStaff();
+      allow delete: if isStaff();
+    }
+
+    // ═══════════════════════════════════════════════
+    // COLEÇÃO: eventos_endocompany
+    // ═══════════════════════════════════════════════
+    match /eventos_endocompany/{eventoId} {
+      // LEITURA: Qualquer usuário autenticado pode ver os eventos
+      allow read: if isAuthenticated();
+
+      // CRIAÇÃO e DELEÇÃO: Apenas Funcionários e ADMs
+      allow create: if isStaff();
+      allow delete: if isStaff();
+
+      // ATUALIZAÇÃO: Staff pode editar metadados, comuns só podem atualizar array de inscrições (inscritos)
+      allow update: if isAuthenticated()
+                    && (
+                      isStaff()
+                      ||
+                      request.resource.data.diff(resource.data).affectedKeys().hasOnly(['inscritos'])
+                    );
+    }
+
+    // ═══════════════════════════════════════════════
+    // COLEÇÃO: tipos_equipamento
+    // ═══════════════════════════════════════════════
+    match /tipos_equipamento/{tipoId} {
+      // Qualquer pessoa pode ler os tipos de equipamento (necessário para os dropdowns públicos e de estoque)
+      allow read: if true;
+      allow create: if isStaff();
+
+      // Deleção e atualização não são usadas na app atualmente
+      allow update, delete: if isAdmin();
+    }
+
+    // ═══════════════════════════════════════════════
+    // COLEÇÃO: estoque_endocompany
+    // ═══════════════════════════════════════════════
+    match /estoque_endocompany/{itemId} {
+      // Apenas Funcionários e ADMs podem ler, criar, editar e deletar itens de estoque
+      allow read, create, update, delete: if isStaff();
+    }
+
+    // ═══════════════════════════════════════════════
+    // COLEÇÃO: logs_auditoria (Imutabilidade total para LGPD)
+    // ═══════════════════════════════════════════════
+    match /logs_auditoria/{logId} {
+      // Qualquer usuário autenticado pode registrar logs assíncronos
+      allow create: if isAuthenticated();
+      
+      // Proibido ler, alterar ou deletar por clientes externos (somente visível no console Firebase)
+      allow read, update, delete: if false;
+    }
+
+    // ═══════════════════════════════════════════════
+    // REGRA PADRÃO: BLOQUEAR TUDO NÃO DECLARADO
+    // ═══════════════════════════════════════════════
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

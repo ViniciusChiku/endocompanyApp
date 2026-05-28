@@ -1,0 +1,9 @@
+{
+  "projects": {
+    "default": "esoteric-storm-461719-g5",
+    "endocompany": "endocompany-app",
+    "Endocompany": "endocompany-app"
+  },
+  "targets": {},
+  "etags": {}
+}

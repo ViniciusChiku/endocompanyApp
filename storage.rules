@@ -1,0 +1,49 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // ═══════════════════════════════════════════════
+    // HELPER: Verifica o role do usuário no Firestore
+    // ═══════════════════════════════════════════════
+    // Verifica se o usuário é Funcionário ou ADM baseado nas Claims do Token
+    function isStaff() {
+      return request.auth != null && (request.auth.token.role == 'Funcionario' || request.auth.token.role == 'ADM');
+    }
+
+    // Verifica se o usuário é ADM baseado na Claim do Token
+    function isAdmin() {
+      return request.auth != null && request.auth.token.role == 'ADM';
+    }
+
+    // ═══════════════════════════════════════════════
+    // PATH: relatorios_preventivas/
+    // Relatórios PDF de preventivas concluídas
+    // ═══════════════════════════════════════════════
+    match /relatorios_preventivas/{fileName} {
+      // LEITURA: Apenas Funcionários e ADMs podem baixar os PDFs
+      allow read: if isStaff();
+
+      // ESCRITA (upload):
+      // - Apenas Funcionários e ADMs
+      // - Tamanho máximo: 10 MB
+      // - Tipo: apenas PDF
+      allow create, update: if isStaff()
+                           && request.resource != null
+                           && request.resource.size != null
+                           && request.resource.size < 10 * 1024 * 1024
+                           && request.resource.contentType != null
+                           && request.resource.contentType.matches('application/pdf');
+
+      // DELEÇÃO: Apenas ADM
+      allow delete: if isAdmin();
+    }
+
+    // ═══════════════════════════════════════════════
+    // REGRA PADRÃO: BLOQUEAR TUDO NÃO DECLARADO
+    // ═══════════════════════════════════════════════
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
