@@ -166,8 +166,14 @@ input, select, textarea {
   font-size: 14px !important;
   color: var(--text-primary) !important;
   background-color: var(--bg-card) !important;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  transition: border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
   outline: none !important;
+}
+
+/* Sem hover visual em campos de formulário */
+input:hover, select:hover, textarea:hover {
+  border-color: var(--border-color) !important;
+  box-shadow: none !important;
 }
 
 input:focus, select:focus, textarea:focus {
@@ -390,6 +396,21 @@ tbody tr:last-child td {
 
 .app-card:hover::before {
   opacity: 1;
+}
+
+/* Card estático — sem hover — para formulários */
+.app-card--static {
+  background-color: var(--bg-card);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border-light);
+  padding: 28px;
+  position: relative;
+  overflow: hidden;
+}
+
+.app-card--static::before {
+  display: none;
 }
 
 /* --- PORTAL HERO --- */

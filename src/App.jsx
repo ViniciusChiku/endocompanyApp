@@ -49,12 +49,14 @@ export default function App() {
   // Novos campos do cadastro
   const [cadastroNome, setCadastroNome] = useState('');
   const [cadastroTelefone, setCadastroTelefone] = useState('');
+  // eslint-disable-next-line no-unused-vars
   const [cadastroCpf, setCadastroCpf] = useState('');
   const [cadastroEndereco, setCadastroEndereco] = useState('');
 
   // Campos para edição do perfil
   const [perfilNome, setPerfilNome] = useState('');
   const [perfilTelefone, setPerfilTelefone] = useState('');
+  // eslint-disable-next-line no-unused-vars
   const [perfilCpf, setPerfilCpf] = useState('');
   const [perfilEndereco, setPerfilEndereco] = useState('');
 
@@ -442,6 +444,21 @@ export default function App() {
     }
   }, [user]);
 
+  // Controla visibilidade do footer LGPD na landing page (aparece ao rolar)
+  useEffect(() => {
+    if (user) return; // só aplica na landing page
+    const handleScroll = () => {
+      const footer = document.getElementById('portal-footer-lgpd');
+      if (!footer) return;
+      const scrolled = window.scrollY > 60;
+      footer.style.opacity = scrolled ? '1' : '0';
+      footer.style.transform = scrolled ? 'translateY(0)' : 'translateY(20px)';
+      footer.style.pointerEvents = scrolled ? 'auto' : 'none';
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [user]);
+
   // Função para enviar chamado de suporte
   const handleEnviarTicket = async (e) => {
     e.preventDefault();
@@ -501,13 +518,6 @@ export default function App() {
       alert("Erro ao enviar chamado. Por favor, tente novamente.");
     }
     setTicketEnviando(false);
-  };
-
-  const irParaSuporte = () => {
-    const section = document.getElementById('secao-suporte');
-    if (section) {
-      section.scrollIntoView({ behavior: 'smooth' });
-    }
   };
 
   const getRoleLabel = (role) => {
@@ -850,26 +860,74 @@ export default function App() {
   // --- TELA DE GUEST (GUEST LANDING PAGE / PARTNER PORTAL) ---
   if (!user) {
     return (
-      <div style={{ backgroundColor: 'var(--bg-app)', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+      <div
+        style={{ backgroundColor: 'var(--bg-app)', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}
+      >
         {/* HEADER NAVBAR */}
-        <header className="sticky top-0 z-50 flex items-center justify-between h-20 px-6 md:px-12 bg-slate-900/90 dark:bg-slate-950/90 backdrop-blur-md border-t border-brand/10 border-b border-slate-800 shadow-lg transition-all duration-300">
-          <div className="flex items-center gap-2 cursor-pointer py-1.5 px-4 hover:bg-slate-800/40 rounded-lg transition-all duration-200" onClick={() => setTelaAtual('painel')}>
-            <span className="text-2xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-brand to-emerald-400 select-none mx-2">
-              Endocompany
-            </span>
+        <header className="sticky top-0 z-50 flex items-center justify-between h-20 px-10 md:px-20 bg-slate-900/95 dark:bg-slate-950/95 backdrop-blur-md border-b border-slate-800/80 shadow-lg transition-all duration-300">
+          {/* LOGO */}
+          <div
+            className="flex items-center cursor-pointer group"
+            onClick={() => setTelaAtual('painel')}
+          >
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              padding: '8px 16px',
+              borderRadius: '12px',
+              border: '1.5px solid rgba(0, 208, 132, 0.25)',
+              background: 'rgba(0, 208, 132, 0.06)',
+              transition: 'all 0.2s ease'
+            }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(0,208,132,0.5)'; e.currentTarget.style.background = 'rgba(0,208,132,0.10)'; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(0,208,132,0.25)'; e.currentTarget.style.background = 'rgba(0,208,132,0.06)'; }}
+            >
+              <div style={{ width: '28px', height: '28px', borderRadius: '7px', background: 'linear-gradient(135deg, #00d084, #00b372)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', flexShrink: 0 }}>⚕️</div>
+              <span style={{
+                fontSize: '20px',
+                fontWeight: '900',
+                letterSpacing: '-0.5px',
+                background: 'linear-gradient(90deg, #00d084 0%, #34d399 100%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                userSelect: 'none'
+              }}>
+                Endocompany
+              </span>
+            </div>
           </div>
-          <div className="flex items-center gap-4">
-            <button 
-              onClick={() => setTheme(prev => prev === 'light' ? 'dark' : 'light')} 
+
+          {/* AÇÕES DO HEADER */}
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setTheme(prev => prev === 'light' ? 'dark' : 'light')}
               className="flex items-center justify-center w-10 h-10 text-xl text-slate-400 hover:text-brand hover:bg-slate-800/50 rounded-full transition-all duration-200"
               title={theme === 'light' ? 'Mudar para Modo Escuro' : 'Mudar para Modo Claro'}
             >
               {theme === 'light' ? '🌙' : '☀️'}
             </button>
-            <button 
-              className="px-5 py-2.5 font-bold text-sm text-white bg-brand hover:bg-brand-hover rounded-lg shadow-md hover:shadow-brand/20 active:scale-95 transition-all duration-200" 
+            <button
               onClick={() => { setAuthModo('login'); setShowLoginModal(true); setErro(''); setMensagemSucesso(''); }}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '10px 22px',
+                fontWeight: '700',
+                fontSize: '14px',
+                color: '#ffffff',
+                background: 'linear-gradient(135deg, #00d084 0%, #00b372 100%)',
+                border: 'none',
+                borderRadius: '10px',
+                boxShadow: '0 4px 14px rgba(0,208,132,0.35)',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,208,132,0.45)'; }}
+              onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 14px rgba(0,208,132,0.35)'; }}
             >
+              <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" /></svg>
               Fazer Login
             </button>
           </div>
@@ -901,8 +959,21 @@ export default function App() {
           )}
         </main>
 
-        {/* FOOTER */}
-        <footer className="portal-footer" style={{ backgroundColor: 'var(--bg-card)', color: 'var(--text-secondary)', padding: '30px 20px', borderTop: '1px solid var(--border-color)', marginTop: 'auto' }}>
+        {/* FOOTER LGPD — oculto inicialmente, aparece ao rolar a página */}
+        <footer
+          id="portal-footer-lgpd"
+          style={{
+            backgroundColor: 'var(--bg-card)',
+            color: 'var(--text-secondary)',
+            padding: '30px 20px',
+            borderTop: '1px solid var(--border-color)',
+            marginTop: 'auto',
+            opacity: 0,
+            transform: 'translateY(20px)',
+            transition: 'opacity 0.5s ease, transform 0.5s ease',
+            pointerEvents: 'none'
+          }}
+        >
           <div style={{ maxWidth: '1100px', margin: '0 auto', display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '15px', fontSize: '13px' }}>
             <div style={{ textAlign: 'left' }}>
               <p style={{ margin: 0, fontWeight: '700', color: 'var(--text-primary)' }}>Endocompany Ltda</p>

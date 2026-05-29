@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, query, orderBy, onSnapshot } from 'firebase/firestore';
 import { db } from '../services/firebaseConfig';
 import { useAuth } from '../context/AuthContext';
@@ -404,7 +404,7 @@ export default function Estoque() {
       {/* MODAL DE CRIAÇÃO OU EDIÇÃO DE ITEM */}
       {modalAberto && (
         <div style={modalOverlayStyle}>
-          <div style={modalContentStyle} className="app-card">
+          <div style={modalContentStyle} className="app-card--static">
             
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
               <h3 style={{ margin: 0, color: 'var(--text-primary)', fontSize: '20px', fontWeight: 'bold' }}>

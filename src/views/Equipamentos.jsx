@@ -823,7 +823,6 @@ export default function Equipamentos() {
           observacoes={observacoes} setObservacoes={setObservacoes}
           statusEquip={statusEquip} setStatusEquip={setStatusEquip}
           emContrato={emContrato} setEmContrato={setEmContrato}
-          frequencia={frequencia} setFrequencia={setFrequencia}
         />
       )}
 

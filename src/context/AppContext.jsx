@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect } from 'react';
 
 const AppContext = createContext();
 
@@ -37,12 +37,7 @@ export function AppProvider({ children }) {
   }, []);
 
   const voltarPainel = () => {
-    const currentHistState = window.history.state;
-    if (currentHistState && currentHistState.screen !== 'painel') {
-      window.history.back();
-    } else {
-      setTelaAtual('painel');
-    }
+    handleSetTelaAtual('painel');
   };
 
   const value = {
